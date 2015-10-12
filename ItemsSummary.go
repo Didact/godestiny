@@ -1,6 +1,8 @@
 package destiny
 
 import (
+	"encoding/json"
+	"log"
 	"time"
 )
 
@@ -111,4 +113,30 @@ type StatData struct {
 	StatHash     float64
 	Value        float64
 	MaximumValue float64
+}
+
+func (is *ItemsSummary) GetAllItems() []string {
+	var res []string
+	for _, item := range is.Response.Data.Items {
+		rows, err := db.Query("SELECT json FROM DestinyInventoryItemDefinition where id=?", item.ItemHash)
+		if err != nil {
+			log.Fatal(err)
+			return nil
+		}
+		for rows.Next() {
+			var row []byte
+			err = rows.Scan(&row)
+			if err != nil {
+				log.Fatal(err)
+			}
+			id := ItemData{}
+			err = json.Unmarshal(row, &id)
+			if err != nil {
+				log.Fatal(err)
+			}
+			//fmt.Println(id.ItemName)
+			res = append(res, id.ItemName)
+		}
+	}
+	return res
 }

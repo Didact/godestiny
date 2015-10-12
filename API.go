@@ -25,15 +25,6 @@ func (m MembershipType) String() string {
 	return fmt.Sprintf("%d", int(m))
 }
 
-func init() {
-	http.DefaultClient.Transport = &c{os.Getenv("BNETAPI")}
-	content, err := sql.Open("sqlite3", "/home/dakota/go/src/github.com/Didact/destiny/content.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-	db = content
-}
-
 type c struct {
 	apikey string
 }
@@ -42,6 +33,15 @@ func (c *c) RoundTrip(r *http.Request) (*http.Response, error) {
 	fmt.Println(r.URL)
 	r.Header.Add("X-API-Key", c.apikey)
 	return http.DefaultTransport.RoundTrip(r)
+}
+
+func init() {
+	http.DefaultClient.Transport = &c{os.Getenv("BNETAPI")}
+	content, err := sql.Open("sqlite3", "/home/dakota/go/src/github.com/Didact/destiny/content.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	db = content
 }
 
 func GetAccount(mt MembershipType, destinyMembershipId string) {
@@ -53,7 +53,7 @@ func GetAccountSummary(mt MembershipType, destinyMembershipId string, definition
 func GetActivityHistory(mt MembershipType, destinyMembershipId string, characterId string, params map[string]string) {
 }
 
-func GetAllItemsSummary(mt MembershipType, destinyMembershipId string, definitions bool) []string {
+func GetAllItemsSummary(mt MembershipType, destinyMembershipId string, definitions bool) *ItemsSummary {
 	url := fmt.Sprintf("http://www.bungie.net/Platform/Destiny/%s/Account/%s/Items/", mt, destinyMembershipId)
 	if definitions {
 		url += "?definitions=true"
@@ -66,39 +66,16 @@ func GetAllItemsSummary(mt MembershipType, destinyMembershipId string, definitio
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log.Println(err)
 		return nil
-		log.Fatal(err)
 	}
 	is := ItemsSummary{}
 	err = json.Unmarshal(body, &is)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return nil
 	}
-	var res []string
-	for _, item := range is.Response.Data.Items {
-		rows, err := db.Query("SELECT json FROM DestinyInventoryItemDefinition where id=?", item.ItemHash)
-		if err != nil {
-			log.Fatal(err)
-			return nil
-		}
-		for rows.Next() {
-			var row []byte
-			err = rows.Scan(&row)
-			if err != nil {
-				log.Fatal(err)
-			}
-			id := ItemData{}
-			err = json.Unmarshal(row, &id)
-			if err != nil {
-				log.Fatal(err)
-			}
-			//fmt.Println(id.ItemName)
-			res = append(res, id.ItemName)
-		}
-	}
-	//return &is
-	return res
+	return &is
 }
 
 func GetItemDetail(mt MembershipType, destinyMembershipId, characterId, itemInstanceId string, definitions bool) {
