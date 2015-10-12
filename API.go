@@ -111,5 +111,8 @@ func SearchDestinyPlayer(mt MembershipType, displayName string) string {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if len(s.Response) == 0 {
+		return ""
+	}
 	return s.Response[0].MembershipId
 }
